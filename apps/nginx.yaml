@@ -1,0 +1,152 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx
+  namespace: web
+data:
+  nginx.conf: |
+    user  nginx;
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+
+
+    events {
+        worker_connections  1024;
+    }
+
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        log_format  main  ' -  [] "" '
+                          '  "" '
+                          '"" ""';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  10;
+        keepalive_requests 10;
+
+        #gzip  on;
+
+        #include /etc/nginx/conf.d/*.conf;
+        
+        resolver 10.100.0.10 valid=0;
+        
+        server {
+            listen       80;
+            listen  [::]:80;
+            server_name  localhost;
+
+            #access_log  /var/log/nginx/host.access.log  main;
+
+            location / {
+                proxy_pass http://tomcat:8080;
+                proxy_http_version 1.0;
+                proxy_set_header Connection "";
+            }
+
+            #error_page  404              /404.html;
+
+            # redirect server error pages to the static page /50x.html
+            #
+            error_page   500 502 503 504  /50x.html;
+            location = /50x.html {
+                root   /usr/share/nginx/html;
+            }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: nginx
+  name: nginx
+  namespace: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - nginx
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - image: nginx:1.23.1
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        lifecycle:
+          preStop:
+            exec:
+              command: ['/bin/sh', '-c', 'sleep 10']
+        resources: {}
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 3
+          failureThreshold: 3
+          timeoutSeconds: 1
+          successThreshold: 1
+        volumeMounts:
+        - name: nginxconf
+          mountPath: "/etc/nginx/nginx.conf"
+          subPath: nginx.conf
+      volumes:
+      - name: nginxconf
+        configMap:
+          name: nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: nginx-nlb
+  name: nginx-nlb
+  namespace: web
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx
+  sessionAffinity: None
+  type: LoadBalancer
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ng-pdb
+  namespace: web
+spec:
+  maxUnavailable: "50%"
+  selector:
+    matchLabels:
+      app: nginx
+---

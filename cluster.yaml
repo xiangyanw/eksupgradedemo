@@ -1,0 +1,66 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-upgrade-demo
+  region: us-west-2
+  version: "1.23"
+  
+iam:
+  withOIDC: true
+  
+addons:
+- name: vpc-cni
+  version: 1.9.3
+  attachPolicyARNs:
+  - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+- name: coredns
+- name: kube-proxy
+
+managedNodeGroups:
+- name: controller
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: m5.large
+  privateNetworking: true
+  subnets:
+  - us-west-2a
+  iam:
+    attachPolicyARNs:
+    - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+    - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+    - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+    - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  labels:
+    app: lbc
+    
+- name: app
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - us-west-2a
+  labels:
+    app: tomcat
+  taints:
+  - key: app
+    value: tomcat
+    effect: NoSchedule
+nodeGroups:
+- name: app2
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - us-west-2a
+  labels:
+    app: tomcat2
+  taints:
+  - key: app
+    value: tomcat2
+    effect: NoSchedule

@@ -1,0 +1,13 @@
+controller:
+  replicaCount: 2
+  minAvailable: 1
+  service:
+    enabled: true
+    external:
+      enabled: true
+    annotations: 
+      service.beta.kubernetes.io/aws-load-balancer-type: external
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: instance
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+      service.beta.kubernetes.io/aws-load-balancer-attributes: load_balancing.cross_zone.enabled=true
+    type: LoadBalancer
