@@ -64,7 +64,65 @@ export SUBNETc=$(aws ec2 describe-subnets \
   Name=availability-zone,Values="${AWS_REGION}"c \
   --query 'Subnets[*].SubnetId' --output text)
     
-# Create EFS node group -- skipped
+# Create EFS node group
+cat << EOF > node-group.yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ${EKS_CLUSTER_NAME}
+  region: ${AWS_REGION}
+  
+vpc:
+  id: "$VPC_ID"
+  subnets:
+    private:
+      ${AWS_REGION}a:
+        id: "$SUBNETa"
+      ${AWS_REGION}b:
+        id: "$SUBNETb"
+
+managedNodeGroups:
+- name: controller
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: m5.large
+  privateNetworking: true
+  labels:
+    app: lbc
+    
+- name: app
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 2
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - ${AWS_REGION}a
+  labels:
+    app: tomcat
+  taints:
+  - key: app
+    value: tomcat
+    effect: NoSchedule
+    
+nodeGroups:
+- name: app2
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - ${AWS_REGION}a
+  labels:
+    app: tomcat2
+  taints:
+  - key: app
+    value: tomcat2
+    effect: NoSchedule
+EOF
 
 # Install AWS Load Balancer Controller
 eksctl create iamserviceaccount \

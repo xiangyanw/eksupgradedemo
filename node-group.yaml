@@ -1,0 +1,56 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-upgrade-demo
+  region: us-west-2
+  
+vpc:
+  id: "vpc-0180888f4e365096d"
+  subnets:
+    private:
+      us-west-2a:
+        id: "subnet-0211ae2769100bf32"
+      us-west-2b:
+        id: "subnet-00bdc253c79754933"
+
+managedNodeGroups:
+- name: controller
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: m5.large
+  privateNetworking: true
+  labels:
+    app: lbc
+    
+- name: app
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 2
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - us-west-2a
+  labels:
+    app: tomcat
+  taints:
+  - key: app
+    value: tomcat
+    effect: NoSchedule
+    
+nodeGroups:
+- name: app2
+  desiredCapacity: 2
+  minSize: 0
+  maxSize: 3
+  instanceType: t3.medium
+  privateNetworking: true
+  subnets:
+  - us-west-2a
+  labels:
+    app: tomcat2
+  taints:
+  - key: app
+    value: tomcat2
+    effect: NoSchedule
