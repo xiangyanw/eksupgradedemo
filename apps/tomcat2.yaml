@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web2
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tomcat2
+  namespace: web2
+data:
+  index.html: |
+    This is a tomcat server.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: tomcat2
+  name: tomcat2
+  namespace: web2
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: tomcat2
+  template:
+    metadata:
+      labels:
+        app: tomcat2
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - tomcat2
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - image: tomcat:8.5.82-jdk8
+        imagePullPolicy: IfNotPresent
+        name: tomcat2
+        args:
+        - sleep 60s; catalina.sh run
+        command:
+        - /bin/sh
+        - -c
+        lifecycle:
+          preStop:
+            exec:
+              command: ['/bin/sh', '-c', 'sleep 10']
+        resources:
+          requests:
+            cpu: "300m"
+            memory: "512Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 3
+          failureThreshold: 3
+          timeoutSeconds: 1
+          successThreshold: 1
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 3
+          successThreshold: 1
+          timeoutSeconds: 1
+          terminationGracePeriodSeconds: 60
+        volumeMounts:
+        - name: index
+          mountPath: "/usr/local/tomcat/webapps/ROOT/index.html"
+          subPath: index.html
+      volumes:
+      - name: index
+        configMap:
+          name: tomcat2
+      nodeSelector:
+        app: tomcat2
+      tolerations:
+      - effect: NoSchedule
+        key: app
+        operator: Exists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: tomcat2
+  name: tomcat2
+  namespace: web2
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: tomcat2
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: tomcat-pdb2
+  namespace: web2
+spec:
+  maxUnavailable: "50%"
+  selector:
+    matchLabels:
+      app: tomcat2
