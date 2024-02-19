@@ -2,7 +2,7 @@
 
 ACCOUNT_ID=`aws sts get-caller-identity --query 'Account' --output text`
 EKS_CLUSTER_NAME="eks-upgrade-demo"
-AWS_REGION="us-west-2"
+AWS_REGION="us-east-1"
 
 if [[ ! -d ~/.bashrc.d/ ]]; then
   mkdir ~/.bashrc.d
@@ -126,9 +126,22 @@ nodeGroups:
     effect: NoSchedule
 EOF
 
+eksctl create nodegroup -f node-group.yaml
+
+if [[ $? -ne 0 ]]; then
+  echo "Failed to create node groups."
+  exit 1
+fi
+
+aws eks wait nodegroup-active --cluster-name $EKS_CLUSTER_NAME --nodegroup-name controller --region $AWS_REGION
+
+aws eks wait nodegroup-active --cluster-name $EKS_CLUSTER_NAME --nodegroup-name app --region $AWS_REGION
+
+aws eks wait nodegroup-active --cluster-name $EKS_CLUSTER_NAME --nodegroup-name app2 --region $AWS_REGION
+
 # Install AWS Load Balancer Controller
 eksctl create iamserviceaccount \
-    --region us-west-2 \
+    --region us-east-1 \
     --cluster ${EKS_CLUSTER_NAME} \
     --name aws-load-balancer-controller \
     --namespace kube-system \
@@ -145,6 +158,7 @@ helm -n kube-system upgrade -i aws-load-balancer-controller \
   --set logLevel=debug \
   --set nodeSelector.app=lbc \
   --set tolerations[0].operator=Exists,tolerations[0].effect=NoSchedule,tolerations[0].key=app \
+  --set serviceAccount.create=false \
   --wait
 
 cat > ng-values.yaml <<EOF

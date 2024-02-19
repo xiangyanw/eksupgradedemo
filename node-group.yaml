@@ -3,16 +3,16 @@ kind: ClusterConfig
 
 metadata:
   name: eks-upgrade-demo
-  region: us-west-2
+  region: us-east-1
   
 vpc:
-  id: "vpc-0180888f4e365096d"
+  id: "vpc-079adeaca47defcf8"
   subnets:
     private:
-      us-west-2a:
-        id: "subnet-0211ae2769100bf32"
-      us-west-2b:
-        id: "subnet-00bdc253c79754933"
+      us-east-1a:
+        id: "subnet-0d6de132d8a5d4442"
+      us-east-1b:
+        id: "subnet-01e7a77fe3a78b329"
 
 managedNodeGroups:
 - name: controller
@@ -31,7 +31,7 @@ managedNodeGroups:
   instanceType: t3.medium
   privateNetworking: true
   subnets:
-  - us-west-2a
+  - us-east-1a
   labels:
     app: tomcat
   taints:
@@ -47,7 +47,7 @@ nodeGroups:
   instanceType: t3.medium
   privateNetworking: true
   subnets:
-  - us-west-2a
+  - us-east-1a
   labels:
     app: tomcat2
   taints:
