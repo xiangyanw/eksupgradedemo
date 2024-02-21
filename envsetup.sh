@@ -183,7 +183,9 @@ helm upgrade -i ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
   -f ng-values.yaml \
   --version 4.2.4
-  
+
+sleep 30
+
 # Deploy sample nginx ingress application
 kubectl create deploy httpd --image httpd:latest
 
